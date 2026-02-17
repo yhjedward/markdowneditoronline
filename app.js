@@ -580,8 +580,12 @@ class MDEditor {
         const isSecureContext = window.isSecureContext;
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        // 优先使用 File System Access API (Chrome/Edge 支持)
-        if (window.showSaveFilePicker) {
+        // 检测用户代理是否为移动设备
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // 如果是移动设备，直接使用 Blob 方式（File System Access API 在移动端支持不佳）
+        // 如果是 PC 端且支持 File System Access API 且是安全上下文，优先使用它
+        if (!isMobile && window.showSaveFilePicker && (isSecureContext || isLocalhost)) {
             try {
                 const fileHandle = await window.showSaveFilePicker({
                     suggestedName: this.currentFile?.name || 'untitled.md',
@@ -607,48 +611,66 @@ class MDEditor {
                     return; // 用户取消
                 }
                 console.error('File System Access API 失败:', error);
-                
-                // 如果不是安全上下文，提示用户使用 HTTPS
-                if (!isSecureContext && !isLocalhost) {
-                    showToast('请使用 HTTPS 访问以启用高级保存功能。当前将使用普通下载方式。', 'error');
-                } else {
-                    showToast('File System Access API 不可用，使用普通下载方式', 'info');
-                }
-            }
-        } else {
-            // 浏览器不支持 File System Access API
-            if (!isSecureContext && !isLocalhost) {
-                showToast('请使用 HTTPS 访问以获得更好的保存体验。当前将使用普通下载方式。', 'error');
-            } else {
-                showToast('当前浏览器不支持高级保存功能，使用普通下载方式', 'info');
+                // 降级到 Blob 方式
             }
         }
 
-        // 备用方案：使用 Blob + a 标签下载（支持所有浏览器）
+        // 使用 Blob + a 标签下载（支持所有浏览器和设备）
         this.downloadFileAsBlob(content);
     }
 
     downloadFileAsBlob(content) {
         const filename = this.currentFile?.name || 'untitled.md';
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-        
-        // 如果浏览器支持 FileSaver.js 或 createObjectURL
+
+        // 创建下载链接
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
-        
-        // 触发点击
-        document.body.appendChild(a);
-        a.click();
-        
-        // 清理
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 100);
 
-        showToast('文件保存成功', 'success');
+        // 添加样式确保链接可见（某些浏览器需要）
+        a.style.display = 'none';
+        a.style.position = 'absolute';
+        a.style.left = '-9999px';
+
+        // 添加到DOM
+        document.body.appendChild(a);
+
+        // 触发下载
+        try {
+            // 使用 click() 方法
+            a.click();
+            showToast('文件保存成功', 'success');
+        } catch (error) {
+            console.error('触发下载失败:', error);
+
+            // 如果 click() 失败，尝试使用 dispatchEvent
+            try {
+                const event = new MouseEvent('click', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true
+                });
+                a.dispatchEvent(event);
+                showToast('文件保存成功', 'success');
+            } catch (e) {
+                console.error('使用 dispatchEvent 也失败:', e);
+                showToast('下载失败，请手动复制内容', 'error');
+            }
+        }
+
+        // 清理DOM和URL（延迟清理以确保下载完成）
+        setTimeout(() => {
+            try {
+                if (document.body.contains(a)) {
+                    document.body.removeChild(a);
+                }
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.warn('清理资源时出错:', e);
+            }
+        }, 1000); // 增加到1秒，确保下载有时间开始
     }
 
     async renameFile(file) {
