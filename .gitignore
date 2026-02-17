@@ -1,0 +1,26 @@
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+temp/
+tmp/
+
+# 本地环境文件
+.env
+.env.local
+
+# 备份文件
+*.bak
+*.backup
