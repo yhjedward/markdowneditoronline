@@ -16,10 +16,30 @@
 
 ## 使用说明
 
-### 本地使用
+### 本地使用（推荐）
 
-1. 直接在浏览器中打开 `index.html` 文件即可使用
-2. 建议将页面添加到主屏幕，以获得最佳体验
+启动本地服务器，文件将自动保存到 `data/` 目录：
+
+```bash
+# 1. 安装依赖（首次使用）
+npm install
+
+# 2. 启动服务器
+npm start
+
+# 3. 在浏览器中打开 http://localhost:3000
+```
+
+文件保存逻辑：
+- 点击"保存"按钮或按 `Ctrl+S`，文件将同时保存到：
+  1. **浏览器本地存储**（IndexedDB）- 离线可用
+  2. **服务器 data/ 目录** - 可在文件系统中查看
+
+### 纯静态使用
+
+如果不方便启动服务器，也可以直接在浏览器中打开 `index.html` 文件：
+- 文件将仅保存到浏览器本地存储
+- 无法保存到服务器的 data 目录
 
 ### 服务器部署
 
@@ -204,9 +224,23 @@ project/
 ├── marked.min.js   # Markdown 渲染引擎
 ├── manifest.json   # PWA 配置
 ├── sw.js           # Service Worker
+├── server.js       # Node.js 本地服务器（支持保存到 data/ 目录）
+├── package.json    # 项目配置
 ├── nginx.conf      # Nginx 部署配置
+├── data/           # 保存的 Markdown 文件目录（自动创建）
 └── README.md       # 说明文档
 ```
+
+### API 接口
+
+当使用 `npm start` 启动服务器时，提供以下 REST API：
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/save` | POST | 保存文件到 data 目录 |
+| `/api/files` | GET | 获取 data 目录中的文件列表 |
+| `/api/files/{filename}` | GET | 读取指定文件内容 |
+| `/api/files/{filename}` | DELETE | 删除指定文件 |
 
 ## 浏览器兼容性
 

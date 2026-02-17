@@ -1,0 +1,17 @@
+{
+  "name": "md-editor",
+  "version": "1.0.0",
+  "description": "Markdown编辑器 - 支持本地文件保存",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "webdav"
+  ],
+  "author": "",
+  "license": "MIT"
+}

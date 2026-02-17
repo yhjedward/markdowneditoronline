@@ -32,6 +32,66 @@ const showToast = (message, type = 'info') => {
     }, 3000);
 };
 
+// ==================== 本地文件存储管理 ====================
+class LocalFileStorage {
+    constructor() {
+        this.apiBaseUrl = '';
+    }
+
+    async saveFile(filename, content) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filename, content })
+            });
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('保存到本地失败:', error);
+            throw error;
+        }
+    }
+
+    async getFiles() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/files`);
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('获取文件列表失败:', error);
+            throw error;
+        }
+    }
+
+    async readFile(filename) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/files/${encodeURIComponent(filename)}`);
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('读取文件失败:', error);
+            throw error;
+        }
+    }
+
+    async deleteFile(filename) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/files/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('删除文件失败:', error);
+            throw error;
+        }
+    }
+}
+
 // ==================== 存储管理 ====================
 class StorageManager {
     constructor() {
@@ -298,6 +358,7 @@ class WebDAVClient {
 class MDEditor {
     constructor() {
         this.storage = new StorageManager();
+        this.localFileStorage = new LocalFileStorage();
         this.webdav = null;
         this.currentFile = null;
         this.files = [];
@@ -306,6 +367,7 @@ class MDEditor {
         this.isPreviewMode = false;
         this.webdavSettings = null;
         this.currentWebDAVPath = '';
+        this.enableLocalSave = true; // 默认启用本地保存
 
         this.init();
     }
@@ -554,7 +616,21 @@ class MDEditor {
 
         const content = $('#editor').value;
         this.currentFile.content = content;
+        
+        // 保存到 IndexedDB
         await this.storage.saveFile(this.currentFile);
+
+        // 同时保存到本地 data 目录
+        if (this.enableLocalSave) {
+            try {
+                await this.localFileStorage.saveFile(this.currentFile.name, content);
+                console.log('文件已保存到本地 data 目录');
+            } catch (error) {
+                console.error('保存到本地目录失败:', error);
+                // 本地保存失败不影响整体保存流程，只是提示用户
+                showToast('本地保存失败，但已保存到浏览器', 'warning');
+            }
+        }
 
         // 更新文件列表中的位置
         const index = this.files.findIndex(f => f.id === this.currentFile.id);
