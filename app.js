@@ -160,8 +160,12 @@ class WebDAVClient {
         const url = this.baseUrl + path;
         const options = {
             method,
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'no-cache',
             headers: {
                 'Authorization': this.auth,
+                'Accept': '*/*',
                 ...headers
             }
         };
@@ -193,6 +197,12 @@ class WebDAVClient {
             return response;
         } catch (error) {
             console.error('WebDAV 请求失败:', error);
+
+            // 检查是否是 CORS 错误
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                throw new Error('CORS_ERROR: 无法连接到服务器，可能是跨域(CORS)问题。请确保 WebDAV 服务器配置了正确的 CORS 响应头，允许来自当前域的请求。');
+            }
+
             throw error;
         }
     }
@@ -769,8 +779,10 @@ class MDEditor {
                 errorMessage = '权限不足：拒绝访问';
             } else if (error.message.includes('HTTP 404')) {
                 errorMessage = '未找到：请检查服务器地址是否正确';
+            } else if (error.message.includes('CORS_ERROR')) {
+                errorMessage = '跨域(CORS)问题：WebDAV 服务器未配置允许跨域访问。请确保服务器响应头包含：Access-Control-Allow-Origin: *';
             } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                errorMessage = '网络错误：无法连接到服务器，可能是跨域(CORS)问题';
+                errorMessage = '网络错误：无法连接到服务器。可能是 CORS 问题或网络不通';
             } else if (error.message.includes('HTTP')) {
                 errorMessage = '服务器错误：' + error.message;
             } else {

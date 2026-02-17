@@ -135,7 +135,9 @@
                     </p>
                     <ul style="font-size: 0.85em; color: var(--text-muted); margin: 0; padding-left: 1.2rem;">
                         <li>如果提示"认证失败"，请检查用户名和密码是否正确</li>
-                        <li>如果提示"网络错误"，可能是跨域(CORS)问题，请确保服务器允许 WebDAV 访问</li>
+                        <li>如果提示"跨域(CORS)问题"，请确保 WebDAV 服务器配置了允许跨域访问的响应头</li>
+                        <li>Nginx 配置示例：<code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">add_header Access-Control-Allow-Origin *;</code></li>
+                        <li>Apache 配置示例：<code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">Header set Access-Control-Allow-Origin "*"</code></li>
                         <li>查看浏览器控制台(F12)获取详细的错误信息</li>
                     </ul>
                 </div>
