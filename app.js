@@ -576,46 +576,7 @@ class MDEditor {
             return;
         }
 
-        // 检查是否在安全上下文中（File System Access API 需要 HTTPS 或 localhost）
-        const isSecureContext = window.isSecureContext;
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-        // 检测用户代理是否为移动设备
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-        // 如果是移动设备，直接使用 Blob 方式（File System Access API 在移动端支持不佳）
-        // 如果是 PC 端且支持 File System Access API 且是安全上下文，优先使用它
-        if (!isMobile && window.showSaveFilePicker && (isSecureContext || isLocalhost)) {
-            try {
-                const fileHandle = await window.showSaveFilePicker({
-                    suggestedName: this.currentFile?.name || 'untitled.md',
-                    types: [
-                        {
-                            description: 'Markdown 文件',
-                            accept: {
-                                'text/markdown': ['.md'],
-                                'text/plain': ['.txt']
-                            }
-                        }
-                    ]
-                });
-
-                const writable = await fileHandle.createWritable();
-                await writable.write(content);
-                await writable.close();
-
-                showToast('文件保存成功', 'success');
-                return;
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    return; // 用户取消
-                }
-                console.error('File System Access API 失败:', error);
-                // 降级到 Blob 方式
-            }
-        }
-
-        // 使用 Blob + a 标签下载（支持所有浏览器和设备）
+        // 使用 Blob + a 标签下载到本地
         this.downloadFileAsBlob(content);
     }
 
