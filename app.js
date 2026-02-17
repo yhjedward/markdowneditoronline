@@ -43,13 +43,13 @@ class StorageManager {
     async init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-            
+
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
                 this.db = request.result;
                 resolve();
             };
-            
+
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains('files')) {
@@ -91,7 +91,7 @@ class StorageManager {
             const index = store.index('updatedAt');
             const request = index.openCursor(null, 'prev');
             const files = [];
-            
+
             request.onsuccess = (event) => {
                 const cursor = event.target.result;
                 if (cursor) {
@@ -223,44 +223,53 @@ class WebDAVClient {
         }
     }
 
-    async listFiles(path = '') {
+    async listFiles(path = '', filterMarkdown = false) {
         const response = await this.request('PROPFIND', path, null, {
             'Depth': '1',
             'Content-Type': 'text/xml'
         });
-        
+
         const xmlText = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-        
+
         const responses = xmlDoc.querySelectorAll('response');
         const files = [];
-        
+
         responses.forEach((resp) => {
             const href = resp.querySelector('href')?.textContent || '';
-            const displayName = decodeURIComponent(href.split('/').pop());
-            const contentType = resp.querySelector('getcontenttype')?.textContent || '';
+            const displayName = decodeURIComponent(href.split('/').filter(Boolean).pop() || '/');
             const lastModified = resp.querySelector('getlastmodified')?.textContent || '';
             const contentLength = resp.querySelector('getcontentlength')?.textContent || '0';
-            
+
             // 跳过当前目录
-            if (href === this.baseUrl.replace(/^(https?:\/\/[^/]+)/, '') + path || 
-                href.endsWith('/' + path + '/')) {
+            const relativePath = href.replace(this.baseUrl, '');
+            if (relativePath === path || relativePath === path + '/' || relativePath === '') {
                 return;
             }
-            
+
             const isCollection = resp.querySelector('collection') !== null;
-            
-            if (!isCollection && displayName.endsWith('.md')) {
+
+            // 显示目录或根据过滤设置显示文件
+            if (isCollection || !filterMarkdown || displayName.endsWith('.md')) {
                 files.push({
                     name: displayName,
                     path: href,
-                    lastModified: new Date(lastModified).getTime(),
-                    size: parseInt(contentLength) || 0
+                    relativePath: relativePath,
+                    lastModified: lastModified ? new Date(lastModified).getTime() : Date.now(),
+                    size: parseInt(contentLength) || 0,
+                    isDirectory: isCollection
                 });
             }
         });
-        
+
+        // 排序：目录在前，然后按名称排序
+        files.sort((a, b) => {
+            if (a.isDirectory && !b.isDirectory) return -1;
+            if (!a.isDirectory && b.isDirectory) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
         return files;
     }
 
@@ -296,7 +305,8 @@ class MDEditor {
         this.historyIndex = -1;
         this.isPreviewMode = false;
         this.webdavSettings = null;
-        
+        this.currentWebDAVPath = '';
+
         this.init();
     }
 
@@ -330,7 +340,7 @@ class MDEditor {
             this.onEditorInput();
             this.updateSaveStatus('unsaved');
         });
-        
+
         // 监听撤销/重做快捷键
         editor.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -365,6 +375,8 @@ class MDEditor {
         // WebDAV
         $('#syncBtn').addEventListener('click', () => this.showWebDAVModal());
         $('#refreshWebdavBtn').addEventListener('click', () => this.refreshWebDAVFiles());
+        $('#browsePathBtn').addEventListener('click', () => this.browseWebDAVPath());
+        $('#upLevelBtn').addEventListener('click', () => this.upLevelWebDAV());
 
         // 弹窗关闭
         $$('.modal-close').forEach(btn => {
@@ -463,12 +475,12 @@ class MDEditor {
             `;
 
             li.querySelector('.filename').addEventListener('click', () => this.openFile(file));
-            
+
             li.querySelector('[data-action="rename"]').addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.renameFile(file);
             });
-            
+
             li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.confirmDeleteFile(file);
@@ -502,7 +514,7 @@ class MDEditor {
         this.files.unshift(file);
         this.renderFileList();
         this.openFile(file);
-        
+
         $('#fileModal').classList.remove('show');
         $('#filenameInput').value = '';
         showToast('文件创建成功', 'success');
@@ -539,11 +551,11 @@ class MDEditor {
         }
 
         this.updateSaveStatus('saving');
-        
+
         const content = $('#editor').value;
         this.currentFile.content = content;
         await this.storage.saveFile(this.currentFile);
-        
+
         // 更新文件列表中的位置
         const index = this.files.findIndex(f => f.id === this.currentFile.id);
         if (index > 0) {
@@ -609,7 +621,7 @@ class MDEditor {
 
     saveHistory() {
         const content = $('#editor').value;
-        
+
         // 如果历史记录已改变，删除当前位置之后的历史
         if (this.historyIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.historyIndex + 1);
@@ -735,7 +747,7 @@ class MDEditor {
         $('#webdavUsername').value = settings.username || '';
         $('#webdavPassword').value = settings.password || '';
         $('#syncDirection').value = settings.syncDirection || 'both';
-        
+
         $('#webdavModal').classList.add('show');
     }
 
@@ -808,10 +820,10 @@ class MDEditor {
         await this.storage.saveSetting('webdav', settings);
         this.webdavSettings = settings;
         this.initWebDAVClient();
-        
+
         $('#webdavModal').classList.remove('show');
         showToast('设置已保存', 'success');
-        
+
         // 开始同步
         this.syncWithWebDAV();
     }
@@ -829,12 +841,14 @@ class MDEditor {
 
             if (direction === 'both' || direction === 'download') {
                 // 从 WebDAV 下载
-                const remoteFiles = await this.webdav.listFiles();
-                
+                const remoteFiles = await this.webdav.listFiles('', true);
+
                 for (const remoteFile of remoteFiles) {
+                    if (remoteFile.isDirectory) continue;
+
                     const content = await this.webdav.getFile(remoteFile.path);
                     const existingFile = this.files.find(f => f.name === remoteFile.name);
-                    
+
                     if (existingFile) {
                         // 更新现有文件
                         if (remoteFile.lastModified > existingFile.updatedAt) {
@@ -878,6 +892,43 @@ class MDEditor {
         }
     }
 
+    async browseWebDAVPath() {
+        const pathInput = $('#webdavPathInput');
+        const path = pathInput.value.trim();
+
+        if (!this.webdav) {
+            showToast('请先配置 WebDAV', 'error');
+            return;
+        }
+
+        this.currentWebDAVPath = path;
+        this.refreshWebDAVFiles();
+    }
+
+    upLevelWebDAVPath() {
+        if (!this.webdav) {
+            showToast('请先配置 WebDAV', 'error');
+            return;
+        }
+
+        // 获取上一级目录
+        let newPath = this.currentWebDAVPath;
+        if (newPath.endsWith('/')) {
+            newPath = newPath.slice(0, -1);
+        }
+
+        const lastSlash = newPath.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            newPath = newPath.slice(0, lastSlash);
+        } else {
+            newPath = '';
+        }
+
+        this.currentWebDAVPath = newPath;
+        $('#webdavPathInput').value = newPath;
+        this.refreshWebDAVFiles();
+    }
+
     async refreshWebDAVFiles() {
         if (!this.webdav) {
             $('#webdavFileList').innerHTML = '<li style="color: var(--text-muted); text-align: center;">请先配置 WebDAV</li>';
@@ -885,59 +936,107 @@ class MDEditor {
         }
 
         try {
-            const files = await this.webdav.listFiles();
+            const path = this.currentWebDAVPath || '';
+            $('#webdavPathInput').value = path;
+
+            const files = await this.webdav.listFiles(path, false);
             const list = $('#webdavFileList');
             list.innerHTML = '';
 
             files.forEach(file => {
                 const li = document.createElement('li');
+                li.className = file.isDirectory ? 'is-directory' : '';
+
+                const icon = file.isDirectory ? '📁' : '📄';
+
                 li.innerHTML = `
+                    <span class="file-icon">${icon}</span>
                     <span class="filename">${file.name}</span>
+                    ${!file.isDirectory ? `
                     <div class="file-actions">
                         <button data-action="download" title="下载">⬇️</button>
                     </div>
+                    ` : ''}
                 `;
 
-                li.querySelector('[data-action="download"]').addEventListener('click', async () => {
-                    try {
-                        const content = await this.webdav.getFile(file.path);
-                        const existingFile = this.files.find(f => f.name === file.name);
-                        
-                        if (existingFile) {
-                            existingFile.content = content;
-                            existingFile.updatedAt = Date.now();
-                            await this.storage.saveFile(existingFile);
-                            if (this.currentFile?.id === existingFile.id) {
-                                $('#editor').value = content;
-                                this.updatePreview();
+                if (file.isDirectory) {
+                    li.querySelector('.filename').addEventListener('click', () => {
+                        this.currentWebDAVPath = file.relativePath;
+                        this.refreshWebDAVFiles();
+                    });
+                } else {
+                    li.querySelector('[data-action="download"]').addEventListener('click', async () => {
+                        try {
+                            const content = await this.webdav.getFile(file.path);
+                            const existingFile = this.files.find(f => f.name === file.name);
+
+                            if (existingFile) {
+                                existingFile.content = content;
+                                existingFile.updatedAt = Date.now();
+                                await this.storage.saveFile(existingFile);
+                                if (this.currentFile?.id === existingFile.id) {
+                                    $('#editor').value = content;
+                                    this.updatePreview();
+                                }
+                            } else {
+                                const newFile = {
+                                    id: generateId(),
+                                    name: file.name,
+                                    content: content,
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                };
+                                await this.storage.saveFile(newFile);
+                                this.files.unshift(newFile);
                             }
-                        } else {
-                            const newFile = {
-                                id: generateId(),
-                                name: file.name,
-                                content: content,
-                                createdAt: Date.now(),
-                                updatedAt: Date.now()
-                            };
-                            await this.storage.saveFile(newFile);
-                            this.files.unshift(newFile);
+
+                            this.renderFileList();
+                            showToast('下载成功', 'success');
+                        } catch (error) {
+                            console.error('下载失败:', error);
+                            showToast('下载失败: ' + error.message, 'error');
                         }
-                        
-                        this.renderFileList();
-                        showToast('下载成功', 'success');
-                    } catch (error) {
-                        showToast('下载失败', 'error');
-                    }
-                });
+                    });
+
+                    li.querySelector('.filename').addEventListener('click', async () => {
+                        try {
+                            const content = await this.webdav.getFile(file.path);
+                            const existingFile = this.files.find(f => f.name === file.name);
+
+                            if (existingFile) {
+                                existingFile.content = content;
+                                existingFile.updatedAt = Date.now();
+                                await this.storage.saveFile(existingFile);
+                                this.openFile(existingFile);
+                            } else {
+                                const newFile = {
+                                    id: generateId(),
+                                    name: file.name,
+                                    content: content,
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                };
+                                await this.storage.saveFile(newFile);
+                                this.files.unshift(newFile);
+                                this.renderFileList();
+                                this.openFile(newFile);
+                            }
+                        } catch (error) {
+                            console.error('打开文件失败:', error);
+                            showToast('打开文件失败: ' + error.message, 'error');
+                        }
+                    });
+                }
 
                 list.appendChild(li);
             });
 
             if (files.length === 0) {
-                list.innerHTML = '<li style="color: var(--text-muted); text-align: center;">暂无远程文件</li>';
+                list.innerHTML = '<li style="color: var(--text-muted); text-align: center;">此目录为空</li>';
             }
         } catch (error) {
-            $('#webdavFileList').innerHTML = '<li style="color: var(--text-muted); text-align: center;">获取文件列表失败</li>';
+            console.error('获取文件列表失败:', error);
+            $('#webdavFileList').innerHTML = `<li style="color: var(--text-muted); text-align: center;">获取文件列表失败: ${error.message}</li>`;
         }
     }
 }

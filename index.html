@@ -35,6 +35,11 @@
             
             <div class="file-list-container">
                 <h3>WebDAV 文件</h3>
+                <div class="path-input-group">
+                    <input type="text" id="webdavPathInput" placeholder="输入路径 (如: /documents)" />
+                    <button id="browsePathBtn" class="btn btn-small">浏览</button>
+                    <button id="upLevelBtn" class="btn btn-small" title="上一级">↑</button>
+                </div>
                 <ul id="webdavFileList" class="file-list"></ul>
                 <button id="refreshWebdavBtn" class="btn btn-text">刷新列表</button>
             </div>
