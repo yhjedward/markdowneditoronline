@@ -581,44 +581,83 @@ class MDEditor {
         const filename = this.currentFile?.name || 'untitled.md';
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
 
-        // 创建下载链接
+        // 方法1: 使用 navigator.msSaveOrOpenBlob (IE/Edge)
+        if (navigator.msSaveOrOpenBlob) {
+            navigator.msSaveOrOpenBlob(blob, filename);
+            showToast('文件保存成功', 'success');
+            return;
+        }
+
+        // 方法2: 使用 Chrome/Firefox 的现代下载 API
+        if (window.showSaveFilePicker) {
+            this.saveWithFilePicker(content, filename);
+            return;
+        }
+
+        // 方法3: 使用传统的 a 标签下载方式
+        this.saveWithAnchorTag(blob, filename);
+    }
+
+    async saveWithFilePicker(content, suggestedFilename) {
+        try {
+            const options = {
+                suggestedName: suggestedFilename,
+                types: [
+                    {
+                        description: 'Markdown 文件',
+                        accept: { 'text/markdown': ['.md', '.markdown'] }
+                    },
+                    {
+                        description: '文本文件',
+                        accept: { 'text/plain': ['.txt'] }
+                    }
+                ]
+            };
+
+            const handle = await window.showSaveFilePicker(options);
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            showToast('文件保存成功', 'success');
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                // 用户取消了保存对话框
+                return;
+            }
+            console.error('使用 FilePicker 保存失败:', error);
+            // 降级到传统方法
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+            this.saveWithAnchorTag(blob, suggestedFilename);
+        }
+    }
+
+    saveWithAnchorTag(blob, filename) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
 
-        // 添加样式确保链接可见（某些浏览器需要）
-        a.style.display = 'none';
-        a.style.position = 'absolute';
-        a.style.left = '-9999px';
-
-        // 添加到DOM
+        // 添加到DOM并设置属性
         document.body.appendChild(a);
 
-        // 触发下载
-        try {
-            // 使用 click() 方法
-            a.click();
-            showToast('文件保存成功', 'success');
-        } catch (error) {
-            console.error('触发下载失败:', error);
+        // 使用 MouseEvent 触发点击，模拟真实用户操作
+        const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            button: 0 // 左键点击
+        });
 
-            // 如果 click() 失败，尝试使用 dispatchEvent
-            try {
-                const event = new MouseEvent('click', {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true
-                });
-                a.dispatchEvent(event);
-                showToast('文件保存成功', 'success');
-            } catch (e) {
-                console.error('使用 dispatchEvent 也失败:', e);
-                showToast('下载失败，请手动复制内容', 'error');
-            }
+        // 尝试触发下载
+        const success = a.dispatchEvent(clickEvent);
+
+        if (success) {
+            showToast('文件保存成功', 'success');
+        } else {
+            showToast('下载失败，请手动复制内容', 'error');
         }
 
-        // 清理DOM和URL（延迟清理以确保下载完成）
+        // 延迟清理资源
         setTimeout(() => {
             try {
                 if (document.body.contains(a)) {
@@ -628,7 +667,7 @@ class MDEditor {
             } catch (e) {
                 console.warn('清理资源时出错:', e);
             }
-        }, 1000); // 增加到1秒，确保下载有时间开始
+        }, 2000);
     }
 
     async renameFile(file) {
