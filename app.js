@@ -391,6 +391,9 @@ class MDEditor {
 
         $('#testConnection').addEventListener('click', () => this.testWebDAVConnection());
 
+        // 存储类型切换
+        $('#storageType').addEventListener('change', () => this.onStorageTypeChange());
+
         // 文件表单
         $('#fileForm').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -845,18 +848,44 @@ class MDEditor {
 
     showWebDAVModal() {
         const settings = this.webdavSettings || {};
+        $('#storageType').value = settings.storageType || 'webdav';
         $('#webdavUrl').value = settings.url || '';
         $('#webdavUsername').value = settings.username || '';
         $('#webdavPassword').value = settings.password || '';
         $('#syncDirection').value = settings.syncDirection || 'both';
 
+        this.onStorageTypeChange();
         $('#webdavModal').classList.add('show');
+    }
+
+    onStorageTypeChange() {
+        const storageType = $('#storageType').value;
+        const urlLabel = $('#urlLabel');
+        const urlHint = $('#urlHint');
+        const webdavHelp = $('#webdavHelp');
+        const openlistHelp = $('#openlistHelp');
+        const urlInput = $('#webdavUrl');
+
+        if (storageType === 'openlist') {
+            urlLabel.textContent = 'OpenList 服务器地址';
+            urlHint.innerHTML = '提示：请输入 OpenList 服务器地址，以 /webdav 结尾<br>例如：https://share.yhjedward.com/webdav';
+            urlInput.placeholder = 'https://share.yhjedward.com/webdav';
+            webdavHelp.style.display = 'none';
+            openlistHelp.style.display = 'block';
+        } else {
+            urlLabel.textContent = 'WebDAV 服务器地址';
+            urlHint.innerHTML = '提示：请输入完整的 WebDAV 服务器地址，以 / 结尾<br>例如：http://1.32.228.66:8092/ 或 http://1.32.228.66:8092/dav/';
+            urlInput.placeholder = 'http://1.32.228.66:8092/';
+            webdavHelp.style.display = 'block';
+            openlistHelp.style.display = 'none';
+        }
     }
 
     async testWebDAVConnection() {
         const url = $('#webdavUrl').value.trim();
         const username = $('#webdavUsername').value.trim();
         const password = $('#webdavPassword').value;
+        const storageType = $('#storageType').value;
 
         if (!url || !username || !password) {
             showToast('请填写完整的连接信息', 'error');
@@ -870,32 +899,38 @@ class MDEditor {
         try {
             const client = new WebDAVClient(url, username, password);
 
-            console.log('开始测试 WebDAV 连接...');
+            console.log(`开始测试 ${storageType.toUpperCase()} 连接...`);
             console.log('URL:', client.baseUrl);
             console.log('用户名:', username);
 
             const success = await client.testConnection();
 
             if (success) {
-                showToast('连接成功', 'success');
-                console.log('WebDAV 连接测试成功');
+                const storageName = storageType === 'openlist' ? 'OpenList' : 'WebDAV';
+                showToast(`${storageName} 连接成功`, 'success');
+                console.log(`${storageName} 连接测试成功`);
             } else {
                 showToast('连接失败，请检查配置', 'error');
             }
         } catch (error) {
-            console.error('WebDAV 连接测试失败:', error);
+            console.error('连接测试失败:', error);
 
             // 根据错误类型提供更友好的提示
             let errorMessage = '连接失败';
+            const storageName = storageType === 'openlist' ? 'OpenList' : 'WebDAV';
 
             if (error.message.includes('HTTP 401')) {
-                errorMessage = '认证失败：用户名或密码错误';
+                errorMessage = `认证失败：${storageName} 用户名或密码错误`;
             } else if (error.message.includes('HTTP 403')) {
                 errorMessage = '权限不足：拒绝访问';
             } else if (error.message.includes('HTTP 404')) {
                 errorMessage = '未找到：请检查服务器地址是否正确';
             } else if (error.message.includes('CORS_ERROR')) {
-                errorMessage = '跨域(CORS)问题：WebDAV 服务器未配置允许跨域访问。请确保服务器响应头包含：Access-Control-Allow-Origin: *';
+                if (storageType === 'openlist') {
+                    errorMessage = '跨域(CORS)问题：OpenList 服务器未配置允许跨域访问。请联系服务管理员';
+                } else {
+                    errorMessage = '跨域(CORS)问题：WebDAV 服务器未配置允许跨域访问。请确保服务器响应头包含：Access-Control-Allow-Origin: *';
+                }
             } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                 errorMessage = '网络错误：无法连接到服务器。可能是 CORS 问题或网络不通';
             } else if (error.message.includes('HTTP')) {
@@ -913,6 +948,7 @@ class MDEditor {
 
     async saveWebDAVSettings() {
         const settings = {
+            storageType: $('#storageType').value,
             url: $('#webdavUrl').value.trim(),
             username: $('#webdavUsername').value.trim(),
             password: $('#webdavPassword').value,
@@ -936,13 +972,14 @@ class MDEditor {
             return;
         }
 
-        showToast('开始同步...', 'info');
+        const storageName = this.webdavSettings?.storageType === 'openlist' ? 'OpenList' : 'WebDAV';
+        showToast(`开始 ${storageName} 同步...`, 'info');
 
         try {
             const direction = this.webdavSettings.syncDirection;
 
             if (direction === 'both' || direction === 'download') {
-                // 从 WebDAV 下载
+                // 从服务器下载
                 const remoteFiles = await this.webdav.listFiles('', true);
 
                 for (const remoteFile of remoteFiles) {
@@ -974,7 +1011,7 @@ class MDEditor {
             }
 
             if (direction === 'both' || direction === 'upload') {
-                // 上传到 WebDAV
+                // 上传到服务器
                 for (const localFile of this.files) {
                     try {
                         await this.webdav.putFile(localFile.name, localFile.content);
@@ -986,11 +1023,11 @@ class MDEditor {
 
             this.files = await this.storage.getAllFiles();
             this.renderFileList();
-            showToast('同步完成', 'success');
+            showToast(`${storageName} 同步完成`, 'success');
             this.refreshWebDAVFiles();
         } catch (error) {
-            console.error('同步失败:', error);
-            showToast('同步失败: ' + error.message, 'error');
+            console.error(`${storageName} 同步失败:`, error);
+            showToast(`${storageName} 同步失败: ${error.message}`, 'error');
         }
     }
 
@@ -1086,7 +1123,8 @@ class MDEditor {
             }
         } catch (error) {
             console.error('获取文件列表失败:', error);
-            $('#webdavFileList').innerHTML = `<li style="color: var(--text-muted); text-align: center;">获取文件列表失败: ${error.message}</li>`;
+            const storageName = this.webdavSettings?.storageType === 'openlist' ? 'OpenList' : 'WebDAV';
+            $('#webdavFileList').innerHTML = `<li style="color: var(--text-muted); text-align: center;">获取 ${storageName} 文件列表失败: ${error.message}</li>`;
         }
     }
 }
