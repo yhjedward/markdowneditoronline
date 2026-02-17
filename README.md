@@ -46,6 +46,23 @@ sudo systemctl reload nginx
 - 已配置前端路由支持（SPA 适配）
 - 包含 HTTPS 配置示例（需 SSL 证书）
 
+#### HTTPS 配置说明（重要）
+
+**如果您需要使用"另存为"功能选择保存目录，必须启用 HTTPS。**
+
+由于浏览器的安全策略，File System Access API（用于弹出文件选择对话框）只在以下环境可用：
+- HTTPS 协议的网站
+- localhost 本地开发环境
+
+**HTTP 访问的局限：**
+- "另存为"按钮会直接将文件下载到浏览器的默认下载目录
+- 无法弹出选择目录的对话框
+
+**解决方案：**
+1. 配置 SSL 证书启用 HTTPS（nginx.conf 中已提供 HTTPS 配置示例）
+2. 或使用 localhost 本地访问
+3. 可以配合浏览器下载设置，下载后手动移动文件
+
 ### WebDAV 同步配置
 
 1. 点击侧边栏的"WebDAV 同步"按钮

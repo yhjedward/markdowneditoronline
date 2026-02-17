@@ -576,8 +576,11 @@ class MDEditor {
             return;
         }
 
-        // 优先使用 File System Access API (Chrome/Edge 支持)
-        if (window.showSaveFilePicker) {
+        // 检查是否在安全上下文 (HTTPS 或 localhost)
+        const isSecureContext = window.isSecureContext;
+
+        // 优先使用 File System Access API (Chrome/Edge 支持，需要 HTTPS)
+        if (window.showSaveFilePicker && isSecureContext) {
             try {
                 const fileHandle = await window.showSaveFilePicker({
                     suggestedName: this.currentFile?.name || 'untitled.md',
@@ -602,7 +605,11 @@ class MDEditor {
                 if (error.name === 'AbortError') {
                     return; // 用户取消
                 }
-                console.error('File System Access API 失败:', error);
+                if (error.name === 'SecurityError') {
+                    console.warn('File System Access API 安全错误，降级到Blob下载:', error);
+                } else {
+                    console.error('File System Access API 失败:', error);
+                }
                 // 继续使用备用方案
             }
         }
@@ -614,24 +621,29 @@ class MDEditor {
     downloadFileAsBlob(content) {
         const filename = this.currentFile?.name || 'untitled.md';
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-        
+
         // 如果浏览器支持 FileSaver.js 或 createObjectURL
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
-        
+
         // 触发点击
         document.body.appendChild(a);
         a.click();
-        
+
         // 清理
         setTimeout(() => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }, 100);
 
-        showToast('文件保存成功', 'success');
+        // 提示用户关于HTTPS的信息
+        if (!window.isSecureContext && window.showSaveFilePicker) {
+            showToast('文件已开始下载。使用 HTTPS 可启用"选择保存位置"功能', 'info');
+        } else {
+            showToast('文件保存成功', 'success');
+        }
     }
 
     async renameFile(file) {
