@@ -576,6 +576,10 @@ class MDEditor {
             return;
         }
 
+        // 检查是否在安全上下文中（File System Access API 需要 HTTPS 或 localhost）
+        const isSecureContext = window.isSecureContext;
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
         // 优先使用 File System Access API (Chrome/Edge 支持)
         if (window.showSaveFilePicker) {
             try {
@@ -603,7 +607,20 @@ class MDEditor {
                     return; // 用户取消
                 }
                 console.error('File System Access API 失败:', error);
-                // 继续使用备用方案
+                
+                // 如果不是安全上下文，提示用户使用 HTTPS
+                if (!isSecureContext && !isLocalhost) {
+                    showToast('请使用 HTTPS 访问以启用高级保存功能。当前将使用普通下载方式。', 'error');
+                } else {
+                    showToast('File System Access API 不可用，使用普通下载方式', 'info');
+                }
+            }
+        } else {
+            // 浏览器不支持 File System Access API
+            if (!isSecureContext && !isLocalhost) {
+                showToast('请使用 HTTPS 访问以获得更好的保存体验。当前将使用普通下载方式。', 'error');
+            } else {
+                showToast('当前浏览器不支持高级保存功能，使用普通下载方式', 'info');
             }
         }
 
