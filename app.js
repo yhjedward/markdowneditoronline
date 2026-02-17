@@ -139,8 +139,21 @@ class StorageManager {
 // ==================== WebDAV 客户端 ====================
 class WebDAVClient {
     constructor(baseUrl, username, password) {
-        this.baseUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+        // 规范化 URL：移除末尾的斜杠，然后统一添加
+        let url = baseUrl.replace(/\/$/, '');
+
+        // 确保协议存在
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'http://' + url;
+        }
+
+        this.baseUrl = url + '/';
         this.auth = 'Basic ' + btoa(username + ':' + password);
+
+        console.log('WebDAV 客户端初始化:', {
+            baseUrl: this.baseUrl,
+            username: username
+        });
     }
 
     async request(method, path, body = null, headers = {}) {
@@ -152,29 +165,51 @@ class WebDAVClient {
                 ...headers
             }
         };
-        
+
         if (body) {
             options.body = body;
         }
 
-        const response = await fetch(url, options);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        console.log(`WebDAV 请求: ${method} ${url}`);
+        console.log('请求头:', { ...options.headers, Authorization: '***' });
+
+        try {
+            const response = await fetch(url, options);
+
+            console.log(`响应状态: ${response.status} ${response.statusText}`);
+
+            if (!response.ok) {
+                // 尝试读取错误响应体
+                let errorText = '';
+                try {
+                    errorText = await response.text();
+                    console.error('错误响应体:', errorText);
+                } catch (e) {
+                    // 忽略读取错误
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ' - ' + errorText : ''}`);
+            }
+
+            return response;
+        } catch (error) {
+            console.error('WebDAV 请求失败:', error);
+            throw error;
         }
-        
-        return response;
     }
 
     async testConnection() {
         try {
-            await this.request('PROPFIND', '', null, {
+            const response = await this.request('PROPFIND', '', null, {
                 'Depth': '0',
                 'Content-Type': 'text/xml'
             });
+
+            // 检查响应状态，PROPFIND 应该返回 207 (Multi-Status)
+            // 但有些服务器可能返回 200 或其他 2xx 状态码
             return true;
         } catch (error) {
-            return false;
+            console.error('WebDAV connection test failed:', error);
+            throw error; // 重新抛出错误以便上层处理
         }
     }
 
@@ -709,15 +744,40 @@ class MDEditor {
 
         try {
             const client = new WebDAVClient(url, username, password);
+
+            console.log('开始测试 WebDAV 连接...');
+            console.log('URL:', client.baseUrl);
+            console.log('用户名:', username);
+
             const success = await client.testConnection();
-            
+
             if (success) {
                 showToast('连接成功', 'success');
+                console.log('WebDAV 连接测试成功');
             } else {
                 showToast('连接失败，请检查配置', 'error');
             }
         } catch (error) {
-            showToast('连接失败: ' + error.message, 'error');
+            console.error('WebDAV 连接测试失败:', error);
+
+            // 根据错误类型提供更友好的提示
+            let errorMessage = '连接失败';
+
+            if (error.message.includes('HTTP 401')) {
+                errorMessage = '认证失败：用户名或密码错误';
+            } else if (error.message.includes('HTTP 403')) {
+                errorMessage = '权限不足：拒绝访问';
+            } else if (error.message.includes('HTTP 404')) {
+                errorMessage = '未找到：请检查服务器地址是否正确';
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = '网络错误：无法连接到服务器，可能是跨域(CORS)问题';
+            } else if (error.message.includes('HTTP')) {
+                errorMessage = '服务器错误：' + error.message;
+            } else {
+                errorMessage = '连接失败: ' + error.message;
+            }
+
+            showToast(errorMessage, 'error');
         } finally {
             testBtn.textContent = '测试连接';
             testBtn.disabled = false;

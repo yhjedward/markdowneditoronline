@@ -103,7 +103,11 @@
             <form id="webdavForm">
                 <div class="form-group">
                     <label for="webdavUrl">WebDAV 服务器地址</label>
-                    <input type="url" id="webdavUrl" placeholder="https://example.com/dav/" required>
+                    <input type="url" id="webdavUrl" placeholder="http://1.32.228.66:8092/" required>
+                    <small style="color: var(--text-muted); font-size: 0.85em;">
+                        提示：请输入完整的 WebDAV 服务器地址，以 / 结尾<br>
+                        例如：http://1.32.228.66:8092/ 或 http://1.32.228.66:8092/dav/
+                    </small>
                 </div>
                 <div class="form-group">
                     <label for="webdavUsername">用户名</label>
@@ -124,6 +128,16 @@
                 <div class="form-actions">
                     <button type="button" id="testConnection" class="btn btn-secondary">测试连接</button>
                     <button type="submit" class="btn btn-primary">保存并同步</button>
+                </div>
+                <div class="form-group" style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px;">
+                    <p style="font-size: 0.85em; color: var(--text-muted); margin: 0 0 0.5rem 0;">
+                        <strong>故障排除：</strong>
+                    </p>
+                    <ul style="font-size: 0.85em; color: var(--text-muted); margin: 0; padding-left: 1.2rem;">
+                        <li>如果提示"认证失败"，请检查用户名和密码是否正确</li>
+                        <li>如果提示"网络错误"，可能是跨域(CORS)问题，请确保服务器允许 WebDAV 访问</li>
+                        <li>查看浏览器控制台(F12)获取详细的错误信息</li>
+                    </ul>
                 </div>
             </form>
         </div>
