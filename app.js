@@ -570,46 +570,68 @@ class MDEditor {
     }
 
     async saveAsFile() {
-        // 检查浏览器是否支持 File System Access API
-        if (!window.showSaveFilePicker) {
-            showToast('您的浏览器不支持此功能，请使用 Chrome、Edge 或其他现代浏览器', 'error');
-            return;
-        }
-
         const content = $('#editor').value;
         if (!content) {
             showToast('没有可保存的内容', 'error');
             return;
         }
 
-        try {
-            // 使用 File System Access API 保存文件
-            const fileHandle = await window.showSaveFilePicker({
-                suggestedName: this.currentFile?.name || 'untitled.md',
-                types: [
-                    {
-                        description: 'Markdown 文件',
-                        accept: {
-                            'text/markdown': ['.md'],
-                            'text/plain': ['.txt']
+        // 优先使用 File System Access API (Chrome/Edge 支持)
+        if (window.showSaveFilePicker) {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: this.currentFile?.name || 'untitled.md',
+                    types: [
+                        {
+                            description: 'Markdown 文件',
+                            accept: {
+                                'text/markdown': ['.md'],
+                                'text/plain': ['.txt']
+                            }
                         }
-                    }
-                ]
-            });
+                    ]
+                });
 
-            // 创建可写流并写入内容
-            const writable = await fileHandle.createWritable();
-            await writable.write(content);
-            await writable.close();
+                const writable = await fileHandle.createWritable();
+                await writable.write(content);
+                await writable.close();
 
-            showToast('文件保存成功', 'success');
-        } catch (error) {
-            // 用户取消选择文件时会被忽略
-            if (error.name !== 'AbortError') {
-                console.error('保存文件失败:', error);
-                showToast('保存失败: ' + error.message, 'error');
+                showToast('文件保存成功', 'success');
+                return;
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    return; // 用户取消
+                }
+                console.error('File System Access API 失败:', error);
+                // 继续使用备用方案
             }
         }
+
+        // 备用方案：使用 Blob + a 标签下载（支持所有浏览器）
+        this.downloadFileAsBlob(content);
+    }
+
+    downloadFileAsBlob(content) {
+        const filename = this.currentFile?.name || 'untitled.md';
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        
+        // 如果浏览器支持 FileSaver.js 或 createObjectURL
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        // 触发点击
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+
+        showToast('文件保存成功', 'success');
     }
 
     async renameFile(file) {
