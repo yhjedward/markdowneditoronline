@@ -333,6 +333,7 @@ class MDEditor {
         // 文件操作
         $('#newFileBtn').addEventListener('click', () => this.showNewFileModal());
         $('#saveBtn').addEventListener('click', () => this.saveCurrentFile());
+        $('#saveAsBtn').addEventListener('click', () => this.saveAsFile());
 
         // 编辑器
         const editor = $('#editor');
@@ -566,6 +567,49 @@ class MDEditor {
 
         this.updateSaveStatus('saved');
         showToast('保存成功', 'success');
+    }
+
+    async saveAsFile() {
+        // 检查浏览器是否支持 File System Access API
+        if (!window.showSaveFilePicker) {
+            showToast('您的浏览器不支持此功能，请使用 Chrome、Edge 或其他现代浏览器', 'error');
+            return;
+        }
+
+        const content = $('#editor').value;
+        if (!content) {
+            showToast('没有可保存的内容', 'error');
+            return;
+        }
+
+        try {
+            // 使用 File System Access API 保存文件
+            const fileHandle = await window.showSaveFilePicker({
+                suggestedName: this.currentFile?.name || 'untitled.md',
+                types: [
+                    {
+                        description: 'Markdown 文件',
+                        accept: {
+                            'text/markdown': ['.md'],
+                            'text/plain': ['.txt']
+                        }
+                    }
+                ]
+            });
+
+            // 创建可写流并写入内容
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+
+            showToast('文件保存成功', 'success');
+        } catch (error) {
+            // 用户取消选择文件时会被忽略
+            if (error.name !== 'AbortError') {
+                console.error('保存文件失败:', error);
+                showToast('保存失败: ' + error.message, 'error');
+            }
+        }
     }
 
     async renameFile(file) {
