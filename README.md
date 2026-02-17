@@ -21,6 +21,31 @@
 1. 直接在浏览器中打开 `index.html` 文件即可使用
 2. 建议将页面添加到主屏幕，以获得最佳体验
 
+### 服务器部署
+
+项目已提供 Nginx 配置文件 `nginx.conf`，快速部署步骤：
+
+```bash
+# 1. 上传文件到服务器
+cp -r . /var/www/md-editor
+
+# 2. 复制 nginx 配置
+sudo cp nginx.conf /etc/nginx/conf.d/md-editor.conf
+
+# 3. 修改配置中的 server_name 和 root 路径
+sudo nano /etc/nginx/conf.d/md-editor.conf
+
+# 4. 测试并重载 nginx
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+配置说明：
+- 已配置 gzip 压缩，加快资源加载
+- 已配置静态资源缓存（JS、CSS、图片缓存1年）
+- 已配置前端路由支持（SPA 适配）
+- 包含 HTTPS 配置示例（需 SSL 证书）
+
 ### WebDAV 同步配置
 
 1. 点击侧边栏的"WebDAV 同步"按钮
@@ -162,6 +187,7 @@ project/
 ├── marked.min.js   # Markdown 渲染引擎
 ├── manifest.json   # PWA 配置
 ├── sw.js           # Service Worker
+├── nginx.conf      # Nginx 部署配置
 └── README.md       # 说明文档
 ```
 
