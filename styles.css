@@ -94,27 +94,6 @@ body {
     padding: 12px;
 }
 
-.path-input-group {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.path-input-group input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-}
-
-.path-input-group input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
 .btn-small {
     padding: 8px 12px;
     font-size: 0.85rem;
@@ -169,11 +148,6 @@ body {
 .file-list li .file-icon {
     margin-right: 8px;
     font-size: 1rem;
-}
-
-.file-list li.is-directory .filename {
-    color: var(--primary-color);
-    font-weight: 500;
 }
 
 .file-list li:hover .file-actions {
