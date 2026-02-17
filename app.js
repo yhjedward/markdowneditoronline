@@ -681,6 +681,7 @@ class MDEditor {
         const previewToggle = $('#previewToggle');
 
         if (this.isPreviewMode) {
+            this.updatePreview();
             previewWrapper.classList.remove('hidden');
             previewWrapper.classList.add('show');
             previewToggle.textContent = '编辑';
