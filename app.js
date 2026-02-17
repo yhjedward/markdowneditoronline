@@ -305,6 +305,7 @@ class MDEditor {
         this.historyIndex = -1;
         this.isPreviewMode = false;
         this.webdavSettings = null;
+        this.webdavCurrentPath = '/';
 
         this.init();
     }
@@ -375,6 +376,13 @@ class MDEditor {
         // WebDAV
         $('#syncBtn').addEventListener('click', () => this.showWebDAVModal());
         $('#refreshWebdavBtn').addEventListener('click', () => this.refreshWebDAVFiles());
+        $('#browseWebdavBtn').addEventListener('click', () => this.browseWebDAVPath());
+        $('#webdavUpBtn').addEventListener('click', () => this.navigateWebDAVUp());
+        $('#webdavPathInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.browseWebDAVPath();
+            }
+        });
 
         // 弹窗关闭
         $$('.modal-close').forEach(btn => {
@@ -995,99 +1003,152 @@ class MDEditor {
     }
 
     async refreshWebDAVFiles() {
+        await this.loadWebDAVFiles(this.webdavCurrentPath);
+    }
+
+    async loadWebDAVFiles(path = '/') {
         if (!this.webdav) {
             $('#webdavFileList').innerHTML = '<li style="color: var(--text-muted); text-align: center;">请先配置 WebDAV</li>';
             return;
         }
 
+        // Normalize path
+        if (!path.startsWith('/')) {
+            path = '/' + path;
+        }
+        if (!path.endsWith('/')) {
+            path += '/';
+        }
+
+        this.webdavCurrentPath = path;
+        $('#webdavPathInput').value = path;
+
         try {
-            const files = await this.webdav.listFiles('', true);
+            const files = await this.webdav.listFiles(path, false);
             const list = $('#webdavFileList');
             list.innerHTML = '';
 
             files.forEach(file => {
                 const li = document.createElement('li');
 
-                li.innerHTML = `
-                    <span class="file-icon">📄</span>
-                    <span class="filename">${file.name}</span>
-                    <div class="file-actions">
-                        <button data-action="download" title="下载">⬇️</button>
-                    </div>
-                `;
+                if (file.isDirectory) {
+                    li.innerHTML = `
+                        <span class="file-icon" style="color: var(--warning-color);">📁</span>
+                        <span class="filename" style="color: var(--primary-color); font-weight: 500;">${file.name}</span>
+                    `;
 
-                li.querySelector('[data-action="download"]').addEventListener('click', async () => {
-                    try {
-                        const content = await this.webdav.getFile(file.path);
-                        const existingFile = this.files.find(f => f.name === file.name);
+                    li.querySelector('.filename').addEventListener('click', () => {
+                        const newPath = file.relativePath;
+                        this.loadWebDAVFiles(newPath);
+                    });
 
-                        if (existingFile) {
-                            existingFile.content = content;
-                            existingFile.updatedAt = Date.now();
-                            await this.storage.saveFile(existingFile);
-                            if (this.currentFile?.id === existingFile.id) {
-                                $('#editor').value = content;
-                                this.updatePreview();
+                    li.querySelector('.file-icon').addEventListener('click', () => {
+                        const newPath = file.relativePath;
+                        this.loadWebDAVFiles(newPath);
+                    });
+                } else {
+                    li.innerHTML = `
+                        <span class="file-icon">📄</span>
+                        <span class="filename">${file.name}</span>
+                        <div class="file-actions">
+                            <button data-action="download" title="下载">⬇️</button>
+                        </div>
+                    `;
+
+                    li.querySelector('[data-action="download"]').addEventListener('click', async () => {
+                        try {
+                            const content = await this.webdav.getFile(file.path);
+                            const existingFile = this.files.find(f => f.name === file.name);
+
+                            if (existingFile) {
+                                existingFile.content = content;
+                                existingFile.updatedAt = Date.now();
+                                await this.storage.saveFile(existingFile);
+                                if (this.currentFile?.id === existingFile.id) {
+                                    $('#editor').value = content;
+                                    this.updatePreview();
+                                }
+                            } else {
+                                const newFile = {
+                                    id: generateId(),
+                                    name: file.name,
+                                    content: content,
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                };
+                                await this.storage.saveFile(newFile);
+                                this.files.unshift(newFile);
                             }
-                        } else {
-                            const newFile = {
-                                id: generateId(),
-                                name: file.name,
-                                content: content,
-                                createdAt: Date.now(),
-                                updatedAt: Date.now()
-                            };
-                            await this.storage.saveFile(newFile);
-                            this.files.unshift(newFile);
-                        }
 
-                        this.renderFileList();
-                        showToast('下载成功', 'success');
-                    } catch (error) {
-                        console.error('下载失败:', error);
-                        showToast('下载失败: ' + error.message, 'error');
-                    }
-                });
-
-                li.querySelector('.filename').addEventListener('click', async () => {
-                    try {
-                        const content = await this.webdav.getFile(file.path);
-                        const existingFile = this.files.find(f => f.name === file.name);
-
-                        if (existingFile) {
-                            existingFile.content = content;
-                            existingFile.updatedAt = Date.now();
-                            await this.storage.saveFile(existingFile);
-                            this.openFile(existingFile);
-                        } else {
-                            const newFile = {
-                                id: generateId(),
-                                name: file.name,
-                                content: content,
-                                createdAt: Date.now(),
-                                updatedAt: Date.now()
-                            };
-                            await this.storage.saveFile(newFile);
-                            this.files.unshift(newFile);
                             this.renderFileList();
-                            this.openFile(newFile);
+                            showToast('下载成功', 'success');
+                        } catch (error) {
+                            console.error('下载失败:', error);
+                            showToast('下载失败: ' + error.message, 'error');
                         }
-                    } catch (error) {
-                        console.error('打开文件失败:', error);
-                        showToast('打开文件失败: ' + error.message, 'error');
-                    }
-                });
+                    });
+
+                    li.querySelector('.filename').addEventListener('click', async () => {
+                        try {
+                            const content = await this.webdav.getFile(file.path);
+                            const existingFile = this.files.find(f => f.name === file.name);
+
+                            if (existingFile) {
+                                existingFile.content = content;
+                                existingFile.updatedAt = Date.now();
+                                await this.storage.saveFile(existingFile);
+                                this.openFile(existingFile);
+                            } else {
+                                const newFile = {
+                                    id: generateId(),
+                                    name: file.name,
+                                    content: content,
+                                    createdAt: Date.now(),
+                                    updatedAt: Date.now()
+                                };
+                                await this.storage.saveFile(newFile);
+                                this.files.unshift(newFile);
+                                this.renderFileList();
+                                this.openFile(newFile);
+                            }
+                        } catch (error) {
+                            console.error('打开文件失败:', error);
+                            showToast('打开文件失败: ' + error.message, 'error');
+                        }
+                    });
+                }
 
                 list.appendChild(li);
             });
 
             if (files.length === 0) {
-                list.innerHTML = '<li style="color: var(--text-muted); text-align: center;">暂无文件</li>';
+                list.innerHTML = '<li style="color: var(--text-muted); text-align: center;">此目录为空</li>';
             }
         } catch (error) {
             console.error('获取文件列表失败:', error);
             $('#webdavFileList').innerHTML = `<li style="color: var(--text-muted); text-align: center;">获取文件列表失败: ${error.message}</li>`;
         }
+    }
+
+    browseWebDAVPath() {
+        const path = $('#webdavPathInput').value.trim() || '/';
+        this.loadWebDAVFiles(path);
+    }
+
+    navigateWebDAVUp() {
+        if (this.webdavCurrentPath === '/' || this.webdavCurrentPath === '') {
+            return;
+        }
+
+        // Remove trailing slash
+        let path = this.webdavCurrentPath.replace(/\/$/, '');
+
+        // Get parent directory
+        const parts = path.split('/');
+        parts.pop();
+        const parentPath = parts.join('/') || '/';
+
+        this.loadWebDAVFiles(parentPath);
     }
 }
 

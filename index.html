@@ -36,6 +36,11 @@
             
             <div class="file-list-container">
                 <h3>WebDAV 文件</h3>
+                <div class="webdav-path-container">
+                    <input type="text" id="webdavPathInput" placeholder="/" value="/">
+                    <button id="browseWebdavBtn" class="btn btn-secondary btn-sm">浏览</button>
+                    <button id="webdavUpBtn" class="btn btn-secondary btn-sm" title="返回上级">↑</button>
+                </div>
                 <ul id="webdavFileList" class="file-list"></ul>
                 <button id="refreshWebdavBtn" class="btn btn-text">刷新列表</button>
             </div>

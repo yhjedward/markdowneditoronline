@@ -107,6 +107,34 @@ body {
     letter-spacing: 0.5px;
 }
 
+.webdav-path-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.webdav-path-container input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+}
+
+.webdav-path-container input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.btn-sm {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    min-width: auto;
+}
+
 .file-list {
     list-style: none;
 }
