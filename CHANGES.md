@@ -1,5 +1,67 @@
 # 变更日志 - WebDAV 连接调试改进
 
+---
+
+## CORS 跨域问题修复和改进
+
+### 问题描述
+用户报告在使用 WebDAV 同步功能时，出现"网络错误：无法连接到服务器，可能是跨域(CORS)问题"的错误。这是因为 WebDAV 服务器没有配置正确的 CORS（跨域资源共享）响应头，导致浏览器阻止了跨域请求。
+
+### 改进内容
+
+#### 1. WebDAV 请求增强 (app.js)
+
+**WebDAVClient.request() 方法改进**：
+- 添加了明确的 CORS 模式配置：`mode: 'cors'`
+- 添加了 `credentials: 'omit'` 配置，避免发送不必要的凭证
+- 添加了 `cache: 'no-cache'` 配置，确保请求不被缓存
+- 添加了 `Accept: */*` 请求头，提高服务器兼容性
+- 改进了 CORS 错误检测，专门识别 "Failed to fetch" 错误
+- 当检测到 CORS 错误时，抛出包含详细解决建议的错误信息
+
+**错误处理改进**：
+- 添加了 CORS_ERROR 特定错误类型的识别
+- 提供了更清晰的错误提示，包括服务器端需要配置的响应头示例
+
+#### 2. 用户界面改进 (index.html)
+
+**WebDAV 设置弹窗**：
+- 更新了故障排除部分，添加了详细的 CORS 配置说明
+- 添加了 Nginx CORS 配置示例代码
+- 添加了 Apache CORS 配置示例代码
+- 改进了错误提示的清晰度和可操作性
+
+#### 3. 文档改进 (README.md)
+
+**新增"CORS 跨域问题"完整章节**：
+- 提供了 Nginx 完整配置示例（包括 WebDAV 和 CORS）
+- 提供了 Apache 完整配置示例（包括 WebDAV 和 CORS）
+- 添加了常见 WebDAV 服务的 CORS 配置说明：
+  - Nextcloud: config.php 配置
+  - 坚果云: 代理服务器方案
+  - ownCloud: config.php 配置
+- 改进了同源策略说明，引导用户参考 CORS 配置章节
+
+### 解决方案概述
+
+对于 CORS 问题，用户需要在 WebDAV 服务器上配置以下响应头：
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PROPFIND, MKCOL, COPY, MOVE
+Access-Control-Allow-Headers: Authorization, Content-Type, Depth, X-Requested-With
+```
+
+并正确处理 OPTIONS 预检请求。
+
+### 使用方法
+
+1. 在 WebDAV 服务器上配置 CORS 响应头（参考 README.md 中的配置示例）
+2. 重新测试连接，应该能够成功连接
+3. 如果仍然失败，查看浏览器控制台获取详细错误信息
+
+---
+
 ## 问题描述
 用户访问 WebDAV 编辑器时，输入正确的用户名和密码后，提示"连接失败，请检查配置"，但没有提供具体的错误信息，无法诊断问题根源。
 

@@ -58,18 +58,71 @@
    - **认证失败 (HTTP 401)**: 用户名或密码错误，请检查凭证
    - **权限不足 (HTTP 403)**: 账号没有访问权限，请联系管理员
    - **未找到 (HTTP 404)**: 服务器地址不正确或路径不存在
-   - **网络错误/跨域问题**: 可能是 CORS 配置问题，需要服务器允许跨域请求
+   - **跨域(CORS)问题**: 服务器未配置允许跨域请求，需要在服务器上添加 CORS 响应头（见下文）
    - **连接超时**: 网络连接问题，检查网络或服务器是否在线
 
-5. **测试服务器连接**
+5. **解决 CORS 跨域问题**
+
+   如果出现"跨域(CORS)问题"错误，需要在 WebDAV 服务器上配置允许跨域访问的响应头。
+
+   **Nginx 配置示例：**
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
+
+       location / {
+           # WebDAV 配置
+           dav_methods PUT DELETE MKCOL COPY MOVE;
+           dav_ext_methods PROPFIND OPTIONS;
+
+           # CORS 配置
+           add_header 'Access-Control-Allow-Origin' '*';
+           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE, PROPFIND, MKCOL, COPY, MOVE';
+           add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Depth, X-Requested-With';
+           add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Type';
+
+           # 处理 OPTIONS 预检请求
+           if ($request_method = 'OPTIONS') {
+               return 204;
+           }
+       }
+   }
+   ```
+
+   **Apache 配置示例：**
+   ```apache
+   <Directory "/path/to/webdav">
+       # WebDAV 配置
+       Dav On
+
+       # CORS 配置
+       Header always set Access-Control-Allow-Origin "*"
+       Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE, PROPFIND, MKCOL, COPY, MOVE"
+       Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Depth, X-Requested-With"
+       Header always set Access-Control-Expose-Headers "Content-Length, Content-Type"
+
+       # 处理 OPTIONS 预检请求
+       RewriteEngine On
+       RewriteCond %{REQUEST_METHOD} OPTIONS
+       RewriteRule ^(.*)$ $1 [R=200,L]
+   </Directory>
+   ```
+
+   **其他 WebDAV 服务的 CORS 配置：**
+   - **Nextcloud**: 在 config.php 中设置 `trusted_domains` 和 `cors.allowed_origins`
+   - **坚果云**: 默认不支持 CORS，建议使用代理服务器
+   - **ownCloud**: 在 config.php 中配置 `cors.domains`
+
+6. **测试服务器连接**
    可以使用命令行工具测试 WebDAV 服务器是否正常：
    ```bash
    curl -X PROPFIND -H "Depth: 0" -u "username:password" http://your-server/
    ```
 
-6. **同源策略**
+7. **同源策略**
    - 如果编辑器页面和 WebDAV 服务器在同一域名下，不应该有跨域问题
-   - 如果在不同域名，需要服务器正确配置 CORS 头
+   - 如果在不同域名，需要服务器正确配置 CORS 头（见上文的 CORS 配置）
 
 ### 支持的 WebDAV 服务
 
