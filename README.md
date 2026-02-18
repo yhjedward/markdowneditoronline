@@ -22,6 +22,30 @@
 - 🌙 **深色主题** - 护眼的深色界面设计
 - 👆 **触摸手势** - 从左边缘向右滑动打开侧边栏
 
+## ❓ 遇到问题？
+
+如果您在使用过程中遇到任何问题，请查看以下文档：
+
+- 📖 **[USER_INSTRUCTIONS.md](USER_INSTRUCTIONS.md)** - 快速上手指南，30 秒解决常见问题
+- 🔧 **[QUICKFIX.md](QUICKFIX.md)** - 快速修复 HTTP 405 错误
+- 📚 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - 详细故障排除指南
+- 🛠️ **[SOLUTION_SUMMARY.md](SOLUTION_SUMMARY.md)** - 完整的技术解决方案说明
+
+### 诊断工具
+
+运行诊断脚本检查配置：
+```bash
+npm run diagnose
+```
+
+### 常见问题速查
+
+| 问题 | 快速解决 | 详细说明 |
+|------|---------|---------|
+| HTTP 405 错误 | 使用 `/webdav/` 地址 | 查看 [QUICKFIX.md](QUICKFIX.md) |
+| CORS 跨域错误 | 使用代理模式 | 查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
+| 认证失败 | 检查用户名密码 | 查看 [USER_INSTRUCTIONS.md](USER_INSTRUCTIONS.md) |
+
 ## 🚀 快速开始
 
 ### 前置要求
