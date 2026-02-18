@@ -172,14 +172,16 @@ class WebDAVClient {
     // 检查是否是代理地址
     isProxyAddress(url) {
         try {
-            const proxyPath = '/dav/';
+            const proxyPaths = ['/dav/', '/webdav/'];
             const currentOrigin = window.location.origin;
             
-            // 检查是否是当前域名下的 /dav/ 路径
-            if (url === currentOrigin + proxyPath || 
-                url === currentOrigin.replace(/\/$/, '') + '/dav/' ||
-                url === proxyPath) {
-                return true;
+            // 检查是否是当前域名下的代理路径（/dav/ 或 /webdav/）
+            for (const proxyPath of proxyPaths) {
+                if (url === currentOrigin + proxyPath ||
+                    url === currentOrigin.replace(/\/$/, '') + proxyPath ||
+                    url === proxyPath) {
+                    return true;
+                }
             }
             
             return false;

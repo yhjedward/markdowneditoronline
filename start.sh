@@ -36,7 +36,7 @@ echo "启动服务器..."
 echo "按 Ctrl+C 停止服务器"
 echo "========================================="
 echo "前端地址: http://localhost:3000"
-echo "WebDAV代理: http://localhost:3000/dav/"
+echo "WebDAV代理: http://localhost:3000/webdav/ 或 http://localhost:3000/dav/"
 echo "API状态: http://localhost:3000/api/status"
 echo "========================================="
 
