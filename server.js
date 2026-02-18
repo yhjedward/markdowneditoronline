@@ -24,11 +24,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // WebDAV 服务器配置
+function normalizeBasePath(basePath) {
+    let normalized = basePath.trim();
+    if (!normalized.startsWith('/')) {
+        normalized = `/${normalized}`;
+    }
+    if (!normalized.endsWith('/')) {
+        normalized += '/';
+    }
+    return normalized;
+}
+
 const WEBDAV_CONFIG = {
     protocol: process.env.WEBDAV_PROTOCOL || 'http',
     host: process.env.WEBDAV_HOST || 'localhost',
     port: process.env.WEBDAV_PORT || 8092,
-    basePath: process.env.WEBDAV_PATH || '/dav/',
+    basePath: normalizeBasePath(process.env.WEBDAV_PATH || '/dav/'),
     username: process.env.WEBDAV_USERNAME || '',
     password: process.env.WEBDAV_PASSWORD || ''
 };
@@ -74,9 +85,9 @@ function getWebDAVAuthHeader() {
 
 // 代理WebDAV请求的核心函数
 async function proxyWebDAV(req, res) {
-    const targetPath = req.params.path || req.params[0] || '';
-    const normalizedPath = targetPath.replace(/^\/+/, '');
-    const targetUrl = `${WEBDAV_BASE_URL}${normalizedPath}`;
+    const rawTargetPath = req.params[0] ?? req.params.path ?? '';
+    const targetPath = rawTargetPath.replace(/^\/+/, '');
+    const targetUrl = targetPath ? `${WEBDAV_BASE_URL}${targetPath}` : WEBDAV_BASE_URL;
     
     console.log(`[${new Date().toISOString()}] ${req.method} ${targetUrl}`);
     
@@ -96,9 +107,18 @@ async function proxyWebDAV(req, res) {
     delete headers['host'];
     delete headers['connection'];
     delete headers['cookie'];
+    delete headers['content-length'];
+    delete headers['transfer-encoding'];
+
+    const requestBody = req.body;
+    const hasBody = requestBody !== undefined && requestBody !== null && (!Buffer.isBuffer(requestBody) || requestBody.length > 0);
+
+    if (!hasBody) {
+        delete headers['content-type'];
+    }
     
     // 确保正确的Content-Type
-    if (req.headers['content-type'] && req.headers['content-type'].includes('text/xml')) {
+    if (hasBody && req.headers['content-type'] && req.headers['content-type'].includes('text/xml')) {
         headers['Content-Type'] = 'application/xml; charset=utf-8';
     }
     
@@ -107,7 +127,7 @@ async function proxyWebDAV(req, res) {
             method: req.method,
             url: targetUrl,
             headers: headers,
-            data: req.body,
+            data: hasBody ? requestBody : undefined,
             responseType: 'stream',
             timeout: 60000,
             validateStatus: () => true // 接受所有状态码

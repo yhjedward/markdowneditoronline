@@ -174,7 +174,7 @@ class WebDAVClient {
         try {
             const proxyPaths = ['/dav', '/webdav'];
             const currentOrigin = window.location.origin;
-
+            const currentHostname = window.location.hostname;
             const normalizePath = (value) => {
                 if (!value) {
                     return '';
@@ -185,13 +185,26 @@ class WebDAVClient {
 
             const trimmedUrl = url.trim().replace(/\/+$/, '');
 
+            if (proxyPaths.includes(trimmedUrl)) {
+                return true;
+            }
+
             if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
                 const parsedUrl = new URL(trimmedUrl);
-                if (parsedUrl.origin !== currentOrigin) {
+                const normalizedPath = normalizePath(parsedUrl.pathname);
+                if (!proxyPaths.includes(normalizedPath)) {
                     return false;
                 }
+                return parsedUrl.origin === currentOrigin || parsedUrl.hostname === currentHostname;
+            }
+
+            if (!trimmedUrl.startsWith('/')) {
+                const parsedUrl = new URL(`https://${trimmedUrl}`);
                 const normalizedPath = normalizePath(parsedUrl.pathname);
-                return proxyPaths.includes(normalizedPath);
+                if (!proxyPaths.includes(normalizedPath)) {
+                    return false;
+                }
+                return parsedUrl.hostname === currentHostname;
             }
 
             const normalizedPath = normalizePath(trimmedUrl);
@@ -984,6 +997,16 @@ class MDEditor {
 
         if (!url) {
             showToast('请填写 WebDAV 服务器地址', 'error');
+<<<<<<< HEAD
+=======
+            return;
+        }
+
+        const client = new WebDAVClient(url, username, password);
+
+        if (!client.isProxy && (!username || !password)) {
+            showToast('请填写完整的连接信息', 'error');
+>>>>>>> 212ed49 (fix: harden WebDAV proxy detection and requests)
             return;
         }
 
@@ -992,8 +1015,6 @@ class MDEditor {
         testBtn.disabled = true;
 
         try {
-            const client = new WebDAVClient(url, username, password);
-
             console.log('开始测试 WebDAV 连接...');
             console.log('URL:', client.baseUrl);
             console.log('用户名:', username);

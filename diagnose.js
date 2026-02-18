@@ -103,8 +103,7 @@ async function diagnose() {
 
   // 测试后端 WebDAV 服务器
   const webdavHeaders = {
-    'Depth': '0',
-    'Content-Type': 'application/xml'
+    'Depth': '0'
   };
 
   if (hasAuth) {
