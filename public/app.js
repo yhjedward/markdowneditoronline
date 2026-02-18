@@ -140,7 +140,7 @@ class StorageManager {
 class WebDAVClient {
     constructor(baseUrl, username, password) {
         // 规范化 URL：移除末尾的斜杠，然后统一添加
-        let url = baseUrl.replace(/\/$/, '');
+        let url = baseUrl.replace(/\/+$/, '');
 
         // 检查是否是代理地址（同一域名下的/dav/路径）
         this.isProxy = this.isProxyAddress(url);
@@ -175,18 +175,27 @@ class WebDAVClient {
             const proxyPaths = ['/dav', '/webdav'];
             const currentOrigin = window.location.origin;
 
-            // 规范化URL进行匹配（移除末尾斜杠）
-            const normalizedUrl = url.replace(/\/$/, '');
-
-            // 检查是否是当前域名下的代理路径（/dav 或 /webdav）
-            for (const proxyPath of proxyPaths) {
-                if (normalizedUrl === currentOrigin + proxyPath ||
-                    normalizedUrl === proxyPath) {
-                    return true;
+            const normalizePath = (value) => {
+                if (!value) {
+                    return '';
                 }
+                const trimmed = value.replace(/\/+$/, '');
+                return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+            };
+
+            const trimmedUrl = url.trim().replace(/\/+$/, '');
+
+            if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+                const parsedUrl = new URL(trimmedUrl);
+                if (parsedUrl.origin !== currentOrigin) {
+                    return false;
+                }
+                const normalizedPath = normalizePath(parsedUrl.pathname);
+                return proxyPaths.includes(normalizedPath);
             }
 
-            return false;
+            const normalizedPath = normalizePath(trimmedUrl);
+            return proxyPaths.includes(normalizedPath);
         } catch (e) {
             return false;
         }
@@ -973,8 +982,8 @@ class MDEditor {
         const username = $('#webdavUsername').value.trim();
         const password = $('#webdavPassword').value;
 
-        if (!url || !username || !password) {
-            showToast('请填写完整的连接信息', 'error');
+        if (!url) {
+            showToast('请填写 WebDAV 服务器地址', 'error');
             return;
         }
 
