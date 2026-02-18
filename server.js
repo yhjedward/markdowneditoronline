@@ -74,8 +74,9 @@ function getWebDAVAuthHeader() {
 
 // 代理WebDAV请求的核心函数
 async function proxyWebDAV(req, res) {
-    const targetPath = req.params.path || '';
-    const targetUrl = `${WEBDAV_BASE_URL}${targetPath}`;
+    const targetPath = req.params.path || req.params[0] || '';
+    const normalizedPath = targetPath.replace(/^\/+/, '');
+    const targetUrl = `${WEBDAV_BASE_URL}${normalizedPath}`;
     
     console.log(`[${new Date().toISOString()}] ${req.method} ${targetUrl}`);
     
@@ -186,8 +187,7 @@ app.get('/api/test-connection', async (req, res) => {
     try {
         const authHeader = getWebDAVAuthHeader();
         const headers = {
-            'Depth': '0',
-            'Content-Type': 'application/xml'
+            'Depth': '0'
         };
         
         if (authHeader) {
@@ -240,8 +240,7 @@ app.get('/api/files', async (req, res) => {
     try {
         const authHeader = getWebDAVAuthHeader();
         const headers = {
-            'Depth': '1',
-            'Content-Type': 'application/xml'
+            'Depth': '1'
         };
         
         if (authHeader) {
