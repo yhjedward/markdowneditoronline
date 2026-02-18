@@ -172,18 +172,20 @@ class WebDAVClient {
     // 检查是否是代理地址
     isProxyAddress(url) {
         try {
-            const proxyPaths = ['/dav/', '/webdav/'];
+            const proxyPaths = ['/dav', '/webdav'];
             const currentOrigin = window.location.origin;
-            
-            // 检查是否是当前域名下的代理路径（/dav/ 或 /webdav/）
+
+            // 规范化URL进行匹配（移除末尾斜杠）
+            const normalizedUrl = url.replace(/\/$/, '');
+
+            // 检查是否是当前域名下的代理路径（/dav 或 /webdav）
             for (const proxyPath of proxyPaths) {
-                if (url === currentOrigin + proxyPath ||
-                    url === currentOrigin.replace(/\/$/, '') + proxyPath ||
-                    url === proxyPath) {
+                if (normalizedUrl === currentOrigin + proxyPath ||
+                    normalizedUrl === proxyPath) {
                     return true;
                 }
             }
-            
+
             return false;
         } catch (e) {
             return false;
@@ -325,8 +327,7 @@ class WebDAVClient {
     async testConnection() {
         try {
             const response = await this.request('PROPFIND', '', null, {
-                'Depth': '0',
-                'Content-Type': 'text/xml'
+                'Depth': '0'
             });
 
             // 检查响应状态，PROPFIND 应该返回 207 (Multi-Status)
@@ -340,8 +341,7 @@ class WebDAVClient {
 
     async listFiles(path = '', filterMarkdown = false) {
         const response = await this.request('PROPFIND', path, null, {
-            'Depth': '1',
-            'Content-Type': 'text/xml'
+            'Depth': '1'
         });
 
         const xmlText = await response.text();
