@@ -91,7 +91,7 @@ npm start
 
 启动成功后，可以通过以下地址访问：
 - **前端应用**: http://localhost:3000
-- **WebDAV 代理**: http://localhost:3000/dav/
+- **WebDAV 代理**: http://localhost:3000/webdav/ 或 http://localhost:3000/dav/
 - **API 状态**: http://localhost:3000/api/status
 
 ## 📁 项目结构
@@ -225,15 +225,16 @@ WebDAV 代理是本项目的核心特性，它解决了前端应用与 WebDAV �
 
 2. **在编辑器中配置**
    - 点击侧边栏的"WebDAV 同步"按钮
-   - 在"WebDAV 服务器地址"中输入：`http://your-domain.com/dav/`
-   - 填写你的 WebDAV 账号信息
+   - 在"WebDAV 服务器地址"中输入：`http://your-domain.com/webdav/` 或 `http://your-domain.com/dav/`
+   - 填写你的 WebDAV 账号信息（代理模式下可留空，使用服务器配置的认证）
    - 点击"测试连接"验证配置
    - 保存后即可开始同步
 
 **重要提示：**
-- 代理地址必须指向当前域名下的 `/dav/` 路径
-- 例如：如果你的应用运行在 `https://example.com`，那么 WebDAV 地址应填写为 `https://example.com/dav/`
+- 代理地址必须指向当前域名下的 `/webdav/` 或 `/dav/` 路径
+- 例如：如果你的应用运行在 `https://example.com`，那么 WebDAV 地址应填写为 `https://example.com/webdav/` 或 `https://example.com/dav/`
 - 代理会自动处理与后端 WebDAV 服务器的连接
+- 两种路径 (`/webdav/` 和 `/dav/`) 功能完全相同，选择其一即可
 
 #### 2. 直接连接模式
 
