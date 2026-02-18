@@ -7,7 +7,6 @@
 - 📝 **完整的 Markdown 编辑功能** - 支持标题、列表、链接、图片、代码块等所有标准 Markdown 语法
 - 📱 **移动优先设计** - 完美适配安卓手机和平板，支持触摸滑动操作
 - 🔄 **WebDAV 同步** - 支持双向同步到 WebDAV 服务器（如 Nextcloud、坚果云等）
-- ☁️ **OpenList 支持** - 支持 OpenList WebDAV 存储同步
 - 💾 **本地存储** - 使用 IndexedDB 本地存储，数据安全可靠
 - 🎨 **实时预览** - 编辑与预览实时同步，一键切换
 - ↩️ **撤销/重做** - 完整的编辑历史管理
@@ -50,27 +49,13 @@ sudo systemctl reload nginx
 ### WebDAV 同步配置
 
 1. 点击侧边栏的"WebDAV 同步"按钮
-2. 选择存储类型：**WebDAV** 或 **OpenList**
-3. 填写服务器信息：
+2. 填写服务器信息：
    - **服务器地址**: 如 `https://dav.example.com/` 或 `https://dav.jianguoyun.com/dav/`
    - **用户名**: 你的 WebDAV 账号
    - **密码**: 你的 WebDAV 密码
    - **同步方向**: 双向同步 / 仅上传 / 仅下载
-4. 点击"测试连接"验证配置
-5. 保存后即可同步文件
-
-#### OpenList 配置
-
-OpenList 是基于 WebDAV 协议的开源文件列表服务。
-
-1. 在存储类型中选择 **OpenList**
-2. 填写 OpenList 服务器地址：
-   - 格式：`https://your-domain.com/webdav`
-   - 示例：`https://share.yhjedward.com/webdav`
-   - 确保地址以 `/webdav` 结尾
-3. 输入用户名和密码
-4. 点击"测试连接"验证
-5. 选择同步方向后保存
+3. 点击"测试连接"验证配置
+4. 保存后即可同步文件
 
 #### 浏览服务器目录
 

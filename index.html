@@ -104,13 +104,6 @@
             </div>
             <form id="webdavForm">
                 <div class="form-group">
-                    <label for="storageType">存储类型</label>
-                    <select id="storageType">
-                        <option value="webdav">WebDAV</option>
-                        <option value="openlist">OpenList</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label for="webdavUrl">
                         <span id="urlLabel">WebDAV 服务器地址</span>
                     </label>
@@ -152,18 +145,7 @@
                         <li>查看浏览器控制台(F12)获取详细的错误信息</li>
                     </ul>
                 </div>
-                <div id="openlistHelp" class="form-group" style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; display: none;">
-                    <p style="font-size: 0.85em; color: var(--text-muted); margin: 0 0 0.5rem 0;">
-                        <strong>OpenList 配置说明：</strong>
-                    </p>
-                    <ul style="font-size: 0.85em; color: var(--text-muted); margin: 0; padding-left: 1.2rem;">
-                        <li>OpenList 是基于 WebDAV 协议的存储服务</li>
-                        <li>服务器地址示例：<code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">https://share.yhjedward.com/webdav</code></li>
-                        <li>请确保地址以 <code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">/webdav</code> 结尾</li>
-                        <li>输入您在 OpenList 服务注册的用户名和密码</li>
-                        <li>如果提示"跨域(CORS)问题"，请联系 OpenList 服务管理员</li>
-                    </ul>
-                </div>
+
             </form>
         </div>
     </div>
