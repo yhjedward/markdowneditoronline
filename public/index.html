@@ -107,19 +107,20 @@
                     <label for="webdavUrl">
                         <span id="urlLabel">WebDAV 服务器地址</span>
                     </label>
-                    <input type="url" id="webdavUrl" placeholder="http://1.32.228.66:8092/" required>
+                    <input type="url" id="webdavUrl" placeholder="https://md.yhjedward.com/webdav/" required>
                     <small id="urlHint" style="color: var(--text-muted); font-size: 0.85em;">
-                        提示：请输入完整的 WebDAV 服务器地址，以 / 结尾<br>
-                        例如：http://1.32.228.66:8092/ 或 http://1.32.228.66:8092/dav/
+                        <strong>代理模式（推荐）：</strong>使用 <code>/webdav/</code> 路径<br>
+                        例如：https://md.yhjedward.com/webdav/ 或 http://localhost:3000/webdav/<br>
+                        <strong>直接连接模式：</strong>输入完整的 WebDAV 服务器地址（需要 CORS 支持）
                     </small>
                 </div>
                 <div class="form-group">
                     <label for="webdavUsername">用户名</label>
-                    <input type="text" id="webdavUsername" placeholder="username" required>
+                    <input type="text" id="webdavUsername" placeholder="用户名（代理模式可留空）" required>
                 </div>
                 <div class="form-group">
                     <label for="webdavPassword">密码</label>
-                    <input type="password" id="webdavPassword" placeholder="password" required>
+                    <input type="password" id="webdavPassword" placeholder="密码（代理模式可留空）" required>
                 </div>
                 <div class="form-group">
                     <label for="syncDirection">同步方向</label>
@@ -138,11 +139,12 @@
                         <strong>故障排除：</strong>
                     </p>
                     <ul style="font-size: 0.85em; color: var(--text-muted); margin: 0; padding-left: 1.2rem;">
-                        <li>如果提示"认证失败"，请检查用户名和密码是否正确</li>
-                        <li>如果提示"跨域(CORS)问题"，请确保 WebDAV 服务器配置了允许跨域访问的响应头</li>
+                        <li><strong>HTTP 405 错误：</strong>请使用代理模式，地址改为 <code>/webdav/</code> 结尾（如 https://md.yhjedward.com/webdav/）</li>
+                        <li><strong>认证失败：</strong>检查用户名和密码是否正确（代理模式下可留空）</li>
+                        <li><strong>跨域(CORS)问题：</strong>使用代理模式即可解决，或配置 WebDAV 服务器 CORS</li>
+                        <li><strong>查看连接模式：</strong>打开浏览器控制台(F12)查看 [代理模式] 或 [直接模式] 日志</li>
                         <li>Nginx 配置示例：<code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">add_header Access-Control-Allow-Origin *;</code></li>
                         <li>Apache 配置示例：<code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">Header set Access-Control-Allow-Origin "*"</code></li>
-                        <li>查看浏览器控制台(F12)获取详细的错误信息</li>
                     </ul>
                 </div>
 
