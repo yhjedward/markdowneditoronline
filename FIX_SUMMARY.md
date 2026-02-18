@@ -12,53 +12,48 @@ app.js:282 [直接模式] PROPFIND https://md.yhjedward.com/webdav/
 app.js:304 WebDAV 请求失败: Error: HTTP 400: - Bad Request
 ```
 
-服务器日志：
-```
-::ffff:127.0.0.1 - yhj [18/Feb/2026:10:29:20 +0000] "PROPFIND /webdav/ HTTP/1.0" 400 11 "https://md.yhjedward.com/" "Mozilla/5.0"
-```
-
 ## 根本原因
 
-前端代码 `app.js` 中的 `isProxyAddress()` 函数只识别 `/dav/` 路径作为代理地址，不识别 `/webdav/` 路径。
+### 问题 1: URL 规范化导致匹配失败
+
+在 `WebDAVClient` 构造函数中（第 143 行），代码会移除用户输入 URL 的末尾斜杠：
 
 ```javascript
-// 原代码（只识别 /dav/）
-isProxyAddress(url) {
-    const proxyPath = '/dav/';  // ❌ 只检查这一个路径
-    const currentOrigin = window.location.origin;
-
-    if (url === currentOrigin + proxyPath ||
-        url === currentOrigin.replace(/\/$/, '') + '/dav/' ||
-        url === proxyPath) {
-        return true;
-    }
-    return false;
-}
+let url = baseUrl.replace(/\/$/, '');  // 例如: https://md.yhjedward.com/webdav/ → https://md.yhjedward.com/webdav
 ```
 
-这导致：
-1. 用户的配置 `https://md.yhjedward.com/webdav/` 未被识别为代理地址
-2. 前端使用"直接连接模式"而非"代理模式"
-3. 直接模式下发送 PROPFIND 请求到 `/webdav/`，但后端返回 400 错误
+然而，`isProxyAddress()` 函数中的代理路径定义包含末尾斜杠：
+
+```javascript
+const proxyPaths = ['/dav/', '/webdav/'];  // ❌ 包含末尾斜杠
+```
+
+这导致即使 URL 格式正确，也无法匹配成功。
+
+### 问题 2: 无效的 Content-Type 头
+
+`testConnection()` 和 `listFiles()` 方法发送 PROPFIND 请求时，设置了 `Content-Type: text/xml` 但请求体为 `null`。某些 WebDAV 服务器会拒绝这种不一致的请求，返回 400 Bad Request。
 
 ## 解决方案
 
-### 1. 修改前端代码（`public/app.js`）
+### 1. 修复 URL 规范化匹配逻辑（`public/app.js`）
 
-更新 `isProxyAddress()` 函数，使其同时识别 `/dav/` 和 `/webdav/` 作为代理地址：
+更新 `isProxyAddress()` 函数，移除代理路径的末尾斜杠，并规范化 URL 进行匹配：
 
 ```javascript
-// 修复后的代码（同时识别 /dav/ 和 /webdav/）
+// 修复后的代码
 isProxyAddress(url) {
     try {
-        const proxyPaths = ['/dav/', '/webdav/'];  // ✅ 支持两个路径
+        const proxyPaths = ['/dav', '/webdav'];  // ✅ 不包含末尾斜杠
         const currentOrigin = window.location.origin;
 
-        // 检查是否是当前域名下的代理路径（/dav/ 或 /webdav/）
+        // 规范化URL进行匹配（移除末尾斜杠）
+        const normalizedUrl = url.replace(/\/$/, '');
+
+        // 检查是否是当前域名下的代理路径（/dav 或 /webdav）
         for (const proxyPath of proxyPaths) {
-            if (url === currentOrigin + proxyPath ||
-                url === currentOrigin.replace(/\/$/, '') + proxyPath ||
-                url === proxyPath) {
+            if (normalizedUrl === currentOrigin + proxyPath ||
+                normalizedUrl === proxyPath) {
                 return true;
             }
         }
@@ -70,9 +65,33 @@ isProxyAddress(url) {
 }
 ```
 
-### 2. 创建 `.env` 配置文件
+### 2. 移除无效的 Content-Type 头
 
-根据用户的服务器日志创建正确的环境变量配置：
+从 PROPFIND 请求中移除 `Content-Type: text/xml` 头，因为请求体为空：
+
+```javascript
+// testConnection() 方法
+async testConnection() {
+    try {
+        const response = await this.request('PROPFIND', '', null, {
+            'Depth': '0'  // ✅ 移除了 Content-Type: text/xml
+        });
+        // ...
+    }
+}
+
+// listFiles() 方法
+async listFiles(path = '', filterMarkdown = false) {
+    const response = await this.request('PROPFIND', path, null, {
+        'Depth': '1'  // ✅ 移除了 Content-Type: text/xml
+    });
+    // ...
+}
+```
+
+### 3. 创建 `.env` 配置文件
+
+根据后端服务器信息创建正确的环境变量配置：
 
 ```env
 PORT=3000
@@ -86,12 +105,6 @@ WEBDAV_USERNAME=yhj
 WEBDAV_PASSWORD=636216
 ```
 
-### 3. 更新文档
-
-更新以下文档以反映两个路径都受支持：
-- `README.md` - 配置说明
-- `start.sh` - 启动脚本提示
-
 ## 修复效果
 
 ### 修复前
@@ -99,7 +112,7 @@ WEBDAV_PASSWORD=636216
 ```
 WebDAV 地址: https://md.yhjedward.com/webdav/
 客户端检测: ❌ 不是代理地址（使用直接模式）
-请求方式: 直接发送 PROPFIND 到 /webdav/
+请求方式: 直接发送 PROPFIND 到 /webdav/（带无效的 Content-Type 头）
 结果: HTTP 400 Bad Request
 ```
 
@@ -115,12 +128,12 @@ WebDAV 地址: https://md.yhjedward.com/webdav/
 
 ## 支持的代理路径
 
-现在两种路径都可以使用，功能完全相同：
+以下路径都可以使用，功能完全相同（支持带或不带末尾斜杠）：
 
-| 路径 | 示例 |
-|------|------|
-| `/webdav/` | `https://md.yhjedward.com/webdav/` |
-| `/dav/` | `https://md.yhjedward.com/dav/` |
+| 路径格式 | 示例 |
+|---------|------|
+| `/webdav/` 或 `/webdav` | `https://md.yhjedward.com/webdav/` |
+| `/dav/` 或 `/dav` | `https://md.yhjedward.com/dav/` |
 
 两种路径都会：
 - 自动触发代理模式
@@ -153,13 +166,11 @@ WebDAV 地址: https://md.yhjedward.com/webdav/
 ## 相关文件
 
 修改的文件：
-- `public/app.js` - 修复代理地址识别逻辑
-- `start.sh` - 更新启动提示
-- `README.md` - 更新文档
+- `public/app.js` - 修复代理地址识别逻辑和 PROPFIND 请求头
+- `FIX_SUMMARY.md` - 更新修复说明
 
 新增的文件：
 - `.env` - 服务器配置文件
-- `FIX_SUMMARY.md` - 本修复说明文档
 
 ## 技术细节
 
@@ -195,4 +206,10 @@ Node.js 代理服务器 (端口 3000)
 
 ## 总结
 
-本次修复解决了 `/webdav/` 路径未被识别为代理地址的问题，使得用户可以使用与 nginx 配置一致的路径。修复后，前端会正确使用代理模式，通过 API 端点与后端通信，避免直接发送 WebDAV 方法（如 PROPFIND）导致的错误。
+本次修复解决了两个关键问题：
+
+1. **代理地址识别失败**: 由于 URL 规范化逻辑的问题，`/webdav/` 路径（带或不带末尾斜杠）未被正确识别为代理地址，导致前端错误地使用直接连接模式
+
+2. **无效的 PROPFIND 请求头**: 发送 PROPFIND 请求时设置了 `Content-Type: text/xml` 但请求体为空，导致某些 WebDAV 服务器返回 400 Bad Request
+
+修复后，前端会正确识别代理地址并使用代理模式，通过 REST API 端点与后端通信，避免直接发送 WebDAV 方法导致的错误。
