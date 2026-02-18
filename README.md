@@ -1,6 +1,29 @@
 # MD Editor - Markdown 编辑器
 
-一款专为安卓移动设备优化的在线 Markdown 编辑器，支持 WebDAV 同步功能。
+一款专为安卓移动设备优化的在线 Markdown 编辑器，支持 WebDAV 同步功能。现在包含完整的 **WebDAV 代理服务器** 解决方案，解决了 HTTPS 前端与 HTTP WebDAV 服务器之间的跨域问题。
+
+## 🆕 新增功能：WebDAV 代理服务器
+
+- ✅ **完整的后端代理解决方案**
+- ✅ **解决跨域(CORS)问题**
+- ✅ **支持直接连接和代理模式**
+- ✅ **Express + Node.js 实现**
+- ✅ **自动化的部署脚本**
+
+### 快速启动代理服务器
+
+```bash
+# 1. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，配置您的 WebDAV 服务器信息
+
+# 2. 启动服务器
+./start.sh
+# 或手动启动
+npm install && npm start
+```
+
+**代理地址**: http://localhost:3000/dav/
 
 ## 特性
 

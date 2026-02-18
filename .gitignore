@@ -24,3 +24,13 @@ tmp/
 # 备份文件
 *.bak
 *.backup
+
+# Node.js依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 构建输出
+dist/
+build/
